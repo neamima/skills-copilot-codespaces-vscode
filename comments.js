@@ -1,36 +1,49 @@
 //create web server
-var http = require('http');
-var fs = require('fs');
-var url = require('url');
+const express = require('express');
+const app = express();
+const bodyParser = require('body-parser');
+const fs = require('fs');
+const path = require('path');
+const port = 3000;
 
-//create server
-http.createServer(function(req, res){
-    //parse the request containing file name
-    var pathname = url.parse(req.url).pathname;
+//use body parser
+app.use(bodyParser.urlencoded({extended: false}));
+app.use(bodyParser.json());
 
-    //print the name of the file for which request is made
-    console.log("Request for " + pathname + " received.");
+//get comments from file
+app.get('/comments', (req, res) => {
+  fs.readFile('./comments.json', 'utf8', (err, data) => {
+    if(err) {
+      console.log(err);
+      res.status(500).send('Internal server error');
+    } else {
+      res.send(data);
+    }
+  });
+});
 
-    //read the requested file content from file system
-    fs.readFile(pathname.substr(1), function(err, data){
-        if(err){
-            console.log(err);
-            //HTTP Status: 404: NOT FOUND
-            //Content Type: text/plain
-            res.writeHead(404, {'Content-Type': 'text/html'});
+//update comments in file
+app.post('/comments', (req, res) => {
+  let newComment = req.body.comment;
+  fs.readFile('./comments.json', 'utf8', (err, data) => {
+    if(err) {
+      console.log(err);
+      res.status(500).send('Internal server error');
+    } else {
+      let comments = JSON.parse(data);
+      comments.push(newComment);
+      fs.writeFile('./comments.json', JSON.stringify(comments), (err) => {
+        if(err) {
+          console.log(err);
+          res.status(500).send('Internal server error');
         } else {
-            //Page found
-            //HTTP Status: 200: OK
-            //Content Type: text/plain
-            res.writeHead(200, {'Content-Type': 'text/html'});
-
-            //write the content of the file to response body
-            res.write(data.toString());
+          res.send('Comment added');
         }
-        //send the response body
-        res.end();
-    });
-}).listen(8081);
+      });
+    }
+  });
+});
 
-//console will print the message
-console.log('Server running at http://test.com:8081/');
+app.listen(port, () => {
+  console.log('Server started on http://localhost:' + port);
+});
