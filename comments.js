@@ -1,49 +1,49 @@
 //create web server
 const express = require('express');
 const app = express();
-const bodyParser = require('body-parser');
-const fs = require('fs');
-const path = require('path');
 const port = 3000;
+const path = require('path');
+const fs = require('fs');
 
-//use body parser
-app.use(bodyParser.urlencoded({extended: false}));
-app.use(bodyParser.json());
+app.use(express.static('public'));
 
-//get comments from file
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
+
 app.get('/comments', (req, res) => {
-  fs.readFile('./comments.json', 'utf8', (err, data) => {
-    if(err) {
-      console.log(err);
-      res.status(500).send('Internal server error');
-    } else {
-      res.send(data);
+  fs.readFile('comments.json', 'utf8', (err, data) => {
+    if (err) {
+      res.status(500).send('Something went wrong');
+      return;
     }
+    res.send(data);
   });
 });
 
-//update comments in file
 app.post('/comments', (req, res) => {
-  let newComment = req.body.comment;
-  fs.readFile('./comments.json', 'utf8', (err, data) => {
-    if(err) {
-      console.log(err);
-      res.status(500).send('Internal server error');
-    } else {
-      let comments = JSON.parse(data);
-      comments.push(newComment);
-      fs.writeFile('./comments.json', JSON.stringify(comments), (err) => {
-        if(err) {
-          console.log(err);
-          res.status(500).send('Internal server error');
-        } else {
-          res.send('Comment added');
-        }
-      });
+  let body = '';
+  req.on('data', chunk => {
+    body += chunk.toString();
+  });
+  req.on('end', () => {
+    let comments = [];
+    try {
+      comments = JSON.parse(fs.readFileSync('comments.json', 'utf8'));
+    } catch (err) {
+      // ignore error
     }
+    comments.push(JSON.parse(body));
+    fs.writeFile('comments.json', JSON.stringify(comments), err => {
+      if (err) {
+        res.status(500).send('Something went wrong');
+        return;
+      }
+      res.send('Comment added');
+    });
   });
 });
 
 app.listen(port, () => {
-  console.log('Server started on http://localhost:' + port);
+  console.log(`Server listening at http://localhost:${port}`);
 });
